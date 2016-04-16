@@ -115,7 +115,7 @@ Htable* construct_Htable(size_t size) {
     if(h != NULL) {
         //on vérifie que la taille n'est pas trop grande
         size_t space = size/ALVEOLE_SIZE + 1;
-        if(space * sizeof(alveole) > SIZE_MAX || 
+        if(space * sizeof(alveole*) > SIZE_MAX || 
             (h->content = calloc(space, sizeof(alveole*))) == NULL) {
             h = NULL;
         } else {
@@ -126,14 +126,16 @@ Htable* construct_Htable(size_t size) {
                 h->nb_alveole = space;
                 for(int i = 0; i < space; ++i) {
                     h->initialized[i] = 0;
+                    //h->content[i] = NULL;
                 }
             }
             
         }
         if(h == NULL) {
-            fprintf(stderr, "Error: not enough memory to construct the table");
+        	fprintf(stderr, "Error: not enough memory to construct the table");
         }
     }
+    fflush(stdout);
     return h;
 }
 
@@ -150,10 +152,24 @@ alveole* construct_alveole(const Htable* table, const size_t hash) {
     } else {
         size = ALVEOLE_SIZE;
     }
-    a = calloc(size, sizeof(bucket*));
+    a = malloc(sizeof(alveole));
     if(a!= NULL) {
-        a->size = size;
+		a->content = calloc(size, sizeof(bucket));
+		if(a->content!= NULL) {
+			for(int i = 0; i < size; ++i) {
+				a->content[i].valid = 0;
+			}
+			a->size = size;
+			table->initialized[hash/ALVEOLE_SIZE] = 1;
+			a->id = hash/ALVEOLE_SIZE;
+		} else {
+			a = NULL;
+		}
     }
+    if(a == NULL) {
+        	fprintf(stderr, "Error: not enough memory to construct the table");
+        	fflush(stderr);
+        }
     return a;
 }
 
@@ -162,7 +178,10 @@ void delete_Htable_and_content(Htable* h) {
         if (h->content != NULL) {
             for(int i = 0; i < h->nb_alveole; ++i) {
                 if(h->initialized[i] != 0) {
-                    free(h->content[i]);
+					h->initialized[i] = 0;
+					if(h->content[i] != NULL) {
+						free((h->content[i])->content);
+					}
                 }
             }
             free(h->content);
@@ -178,6 +197,7 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
     if(h != NULL && h->content != NULL) {
         size_t hash = hash_function(key, h->size);
         size_t pos_alveole = hash / ALVEOLE_SIZE;
+        printf("position %zu\n", pos_alveole);
         alveole* a = NULL;
         if(h->initialized[pos_alveole] == 0) {
             a = construct_alveole(h, hash);
@@ -190,30 +210,30 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
         } else {
             a = h->content[pos_alveole];
         }
-
         size_t pos = hash % ALVEOLE_SIZE;
-        bucket b = {key, value, NULL};
-        bucket buck = a->content[pos];
-        if(&buck == NULL) {
-            buck = b;
+        printf("alveole: %zu, hash : %zu, modulo: %zu\n",pos_alveole, hash, pos);
+        bucket b = {1, key, value, NULL};
+        bucket* buck = &a->content[pos];
+        if(buck->valid == 0) {
+            *buck = b;
         } else {
-            if(buck.key == b.key) {
-                b.next = buck.next;
-                buck = b;
+            if(buck->key == b.key) {
+                b.next = buck->next;
+                *buck = b;
             } else {
-                bucket* prev = &buck;
-                bucket* curr = buck.next;
+                bucket* prev = buck;
+                bucket* curr = buck->next;
                 while(curr != NULL) {
-                    if(curr->key = b.key) {
-                        b.next = curr->next;
-                        *prev->next = b;
+                    if(curr->key == b.key) {
+                        b.next = curr->next; //update de la valeur pour une clé déjà présente dans la chaine
+                        *(prev->next) = b;
                         break;
                     }
                     prev = curr;
                     curr = curr->next;
                 }
-                if(curr == NULL) {
-                    *prev->next = b;
+                if(curr == NULL) { //collision : place à la fin de la chaine
+                    *(prev->next) = b;
                 }
             }
         }
@@ -326,6 +346,10 @@ char* row_element(const csv_const_row row, size_t index)
 /* ****************************************
  * TODO : add your own code here.
  * **************************************** */
+ 
+int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t memory) {
+ 
+}
 
 
 /* ======================================================================
