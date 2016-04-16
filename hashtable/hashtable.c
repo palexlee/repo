@@ -164,13 +164,22 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
                     if(curr->key == b.key) {
                         b.next = curr->next; //update de la valeur pour une clé déjà présente dans la chaine
                         *(prev->next) = b;
+                        printf("chaine");
                         break;
                     }
                     prev = curr;
                     curr = curr->next;
                 }
                 if(curr == NULL) { //collision : place à la fin de la chaine
-                    *(prev->next) = b;
+					printf("ici\n");
+                    if((curr = malloc(sizeof(bucket))) == NULL) {
+						fprintf(stderr, "Error: not enough memory");
+					} else {
+						printf("ici\n");
+						*curr = b;  //ne pas oublier de free
+					}
+                    printf("collision");
+                    fflush(stdout);
                 }
             }
         }
@@ -209,7 +218,7 @@ void affiche(Htable* table) {
 }
 
 int main(void) { 
-	Htable* table = construct_Htable(600);
+	Htable* table = construct_Htable(2);
 	char* s = "sam";
 	char* p = "pougne";
 	char* x = "rhubarbe";
