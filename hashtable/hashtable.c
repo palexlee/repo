@@ -79,16 +79,18 @@ Htable* construct_Htable(size_t size) {
 alveole* construct_alveole(const Htable* table, const size_t hash) {
     alveole* a = NULL;
     size_t size = 0;
-    if((table->size - hash) < ALVEOLE_SIZE) {
+    if((table->size - (table->size % ALVEOLE_SIZE)) < hash) {
         /**
          * si la taille de la table n'est pas un multiple de ALVEOLE_SIZE
-         * la dernière alveole de la table aura une taille de (table->size - hash)
+         * la dernière alveole de la table aura une taille de (table->size % ALVEOLE_SIZE)
          */
-        size = table->size - hash; 
+        size = table->size % ALVEOLE_SIZE; 
+        
 
     } else {
         size = ALVEOLE_SIZE;
     }
+    printf("taille alveole %zu\n", size);
     a = malloc(sizeof(alveole));
     if(a!= NULL) {
 		a->content = calloc(size, sizeof(bucket));
@@ -113,10 +115,27 @@ alveole* construct_alveole(const Htable* table, const size_t hash) {
 void delete_Htable_and_content(Htable* h) {
     if(h != NULL) {
         if (h->content != NULL) {
+
             for(int i = 0; i < h->nb_alveole; ++i) {
+				
                 if(h->initialized[i] != 0) {
 					h->initialized[i] = 0;
+					
 					if(h->content[i] != NULL) {
+						alveole * a = h->content[i];
+						
+						for(int j = 0; j < a->size; ++j) {
+							bucket* ptr = a->content[j].next;
+							bucket* next = NULL;
+							while(ptr != NULL) {
+								next = ptr->next;
+								free(ptr);
+								ptr = next;
+							}	
+							ptr = NULL;
+							next = NULL;
+						
+						}
 						free((h->content[i])->content);
 					}
                 }
@@ -164,21 +183,21 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
                     if(curr->key == b.key) {
                         b.next = curr->next; //update de la valeur pour une clé déjà présente dans la chaine
                         *(prev->next) = b;
-                        printf("chaine");
+                        printf("chaine %s\n", b.key);
                         break;
                     }
                     prev = curr;
                     curr = curr->next;
                 }
                 if(curr == NULL) { //collision : place à la fin de la chaine
-					printf("ici\n");
-                    if((curr = malloc(sizeof(bucket))) == NULL) {
+					curr = malloc(sizeof(bucket));
+                    if(curr == NULL) {
 						fprintf(stderr, "Error: not enough memory");
 					} else {
-						printf("ici\n");
-						*curr = b;  //ne pas oublier de free
+						*curr = b;
+						prev->next = curr;  //ne pas oublier de free
 					}
-                    printf("collision");
+                    printf("collision %s\n", curr->key);
                     fflush(stdout);
                 }
             }
@@ -218,7 +237,7 @@ void affiche(Htable* table) {
 }
 
 int main(void) { 
-	Htable* table = construct_Htable(2);
+	Htable* table = construct_Htable(256);
 	char* s = "sam";
 	char* p = "pougne";
 	char* x = "rhubarbe";
