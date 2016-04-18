@@ -180,7 +180,7 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
                 bucket* prev = buck;
                 bucket* curr = buck->next;
                 while(curr != NULL) {
-                    if(curr->key == b.key) {
+                    if(strncmp(curr->key, b.key, 15) == 0) {
                         b.next = curr->next; //update de la valeur pour une clé déjà présente dans la chaine
                         *(prev->next) = b;
                         printf("chaine %s\n", b.key);
@@ -236,6 +236,36 @@ void affiche(Htable* table) {
  	}
 }
 
+const void* get_Htable_value(Htable* h, const char* key) {
+	if(h == NULL) {
+		return NULL;
+	}
+	
+	size_t hash = hash_function(key, h->size);
+	size_t pos_alveole = hash / ALVEOLE_SIZE;
+	size_t pos = hash % ALVEOLE_SIZE;
+	
+	alveole* a = h->content[pos_alveole];
+	if(a == NULL) {
+		return NULL;
+	}
+	
+	bucket* b = &a->content[pos];
+	if(b == NULL) {
+		return NULL;
+	}
+	
+	while(b != NULL) {
+		if(strncmp(b->key, key, 15) == 0) {
+			return b->value;
+		} else {
+			b = b->next;
+		}
+	}
+	
+	return NULL;
+}
+
 int main(void) { 
 	Htable* table = construct_Htable(256);
 	char* s = "sam";
@@ -250,6 +280,8 @@ int main(void) {
 	add_Htable_value(table, x, &c);
 	add_Htable_value(table, x, &b);
 	affiche(table);
+	int value = *(int*)get_Htable_value(table, x);
+	printf("value %d\n", value);
 	delete_Htable_and_content(table);
 
 	return 0;
