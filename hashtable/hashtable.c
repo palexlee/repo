@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
+#include <time.h>
 
 typedef struct bucket{
 	int valid;
@@ -45,6 +46,47 @@ size_t hash_function(const char* key, size_t size)
 /* ****************************************
  * TODO : add your own code here.
  * **************************************** */
+/*
+bucket* create_bucket(const char* key, const void* value) {
+	bucket* b = malloc(sizeof(bucket));
+	if(b != NULL) {
+		char* k = malloc(sizeof(char*));
+		if(k!= NULL) {
+			void* v = malloc(sizeof(void*));
+			if(v != NULL) {
+				b->valid = 1;
+				b->key = k;
+				b->value = v;
+				b->next = NULL;
+			} else {
+				free(k);
+				free(b);
+			}
+		} else {
+			free(b);
+			b = NULL;
+		}
+	}
+}
+
+void delete_bucket(bucket* b) {
+	if(b != NULL) {
+		if(b->key != NULL) {
+			free(b->key);
+			b->key = NULL;
+		}
+
+		if(b->value != NULL) {
+			free(b->value);
+			b->value = NULL;
+		}
+
+		b->valid = 0;
+		free(b);
+		b = NULL;
+	}
+}*/
+
 Htable* construct_Htable(size_t size) {
     Htable* h = NULL;
 
@@ -90,7 +132,6 @@ alveole* construct_alveole(const Htable* table, const size_t hash) {
     } else {
         size = ALVEOLE_SIZE;
     }
-    printf("taille alveole %zu\n", size);
     a = malloc(sizeof(alveole));
     if(a!= NULL) {
 		a->content = calloc(size, sizeof(bucket));
@@ -153,7 +194,6 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
     if(h != NULL && h->content != NULL) {
         size_t hash = hash_function(key, h->size);
         size_t pos_alveole = hash / ALVEOLE_SIZE;
-        printf("position %zu\n", pos_alveole);
         alveole* a = NULL;
         if(h->initialized[pos_alveole] == 0) {
             a = construct_alveole(h, hash);
@@ -167,7 +207,10 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
             a = h->content[pos_alveole];
         }
         size_t pos = hash % ALVEOLE_SIZE;
-        printf("alveole: %zu, hash : %zu, modulo: %zu\n",pos_alveole, hash, pos);
+
+        char* k = malloc(sizeof(char*));
+        void* v = malloc(sizeof(void*));
+        v = mem_copy  /////RDGADRGJARGJRGJARGJARGAJRGJARGAJRGJADRJGJDRJGJRDGARGJROGJEROGJEGJGöVOJAGOJQEGJA°RGJöAJ
         bucket b = {1, key, value, NULL};
         bucket* buck = &a->content[pos];
         if(buck->valid == 0) {
@@ -180,7 +223,7 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
                 bucket* prev = buck;
                 bucket* curr = buck->next;
                 while(curr != NULL) {
-                    if(strncmp(curr->key, b.key, 15) == 0) {
+                    if(strcmp(curr->key, b.key) == 0) {
                         b.next = curr->next; //update de la valeur pour une clé déjà présente dans la chaine
                         *(prev->next) = b;
                         printf("chaine %s\n", b.key);
@@ -266,8 +309,44 @@ const void* get_Htable_value(Htable* h, const char* key) {
 	return NULL;
 }
 
+char *randstring(int length) {    
+    static int mySeed = 25011984;
+    char *string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-#'?!";
+    size_t stringLen = strlen(string);        
+    char *randomString = NULL;
+
+    srand(time(NULL) * length + ++mySeed);
+
+    if (length < 1) {
+        length = 1;
+    }
+
+    randomString = malloc(sizeof(char) * (length +1));
+
+    if (randomString) {
+        short key = 0;
+
+        for (int n = 0;n < length;n++) {            
+            key = rand() % stringLen;          
+            randomString[n] = string[key];
+        }
+
+        randomString[length] = '\0';
+
+        return randomString;        
+    }
+    else {
+        printf("No memory");
+        exit(1);
+    }
+}
+
 int main(void) { 
 	Htable* table = construct_Htable(256);
+	for(int i = 0; i < 200; ++i) {
+		char* tmp = randstring(8);
+		add_Htable_value(table, tmp, &i);
+	}
 	char* s = "sam";
 	char* p = "pougne";
 	char* x = "rhubarbe";

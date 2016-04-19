@@ -242,7 +242,7 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
                 bucket* prev = buck;
                 bucket* curr = buck->next;
                 while(curr != NULL) {
-                    if(strncmp(curr->key, b.key, 15) == 0) {
+                    if(strcmp(curr->key, b.key) == 0) {
                         b.next = curr->next; //update de la valeur pour une clé déjà présente dans la chaine
                         *(prev->next) = b;
                         printf("chaine %s\n", b.key);
@@ -478,7 +478,7 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 		}
 		while(current_r2 != NULL) {
 			current_r2 = read_row(in2);
-			if(current_r2 != NULL || strlen(current_r2) != 0) {
+			if(current_r2 != NULL && strlen(current_r2) != 0) {
 				key = row_element(current_r2, col1);
 				if(key == NULL) {
 					fprintf(stderr, "Error: key not parsed r2\n");
