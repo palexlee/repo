@@ -407,7 +407,7 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 	Htable* table = NULL;
 	int load_factor = (int) memory * HASH_TABLE_LOAD_FACTOR;
 	
-	csv_row current_r1 = read_row(in1); //rajouter une fonction pour trouver la colonne de jointure !!!!!!!!!!!!!!
+	csv_row current_r1 = read_row(in1);
 	
 	if(current_r1 == NULL) {
 		fprintf(stderr, "Error: can't read file 1");
@@ -421,7 +421,7 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 		return 1;
 	}
 	
-	write_rows(out, current_r1, current_r2, 3);
+	write_rows(out, current_r1, current_r2, col2);
 	
 	if(ferror(out) || feof(out)) {
 		fprintf(stderr,"Error I/O");
@@ -442,21 +442,17 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 		if(current_r1 != NULL) {
 			for(int i = 0; i < load_factor; ++i) {
 				current_r1 = read_row(in1);
-				printf("string length %zu\n", strlen(current_r1));
 				if(current_r1 == NULL || strlen(current_r1) == 0) {
 					current_r1 = NULL;
-					fprintf(stderr, "Error: key not parsed r1\n");
 					break;
 				} else {
 					
-					printf(">%s<\n", current_r1);
 					key = row_element(current_r1, col1);
 					if(key == NULL) {
 						fprintf(stderr, "Error: can't read data key r1\n");
 						delete_Htable_and_content(table);
 						return 1;
 					}
-					printf("key %s\n", key);
 					add_Htable_value(table, key, current_r1);
 				}
 
@@ -478,13 +474,11 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 		current_r2 = read_row(in2);
 	
 		if(current_r2 == NULL) {
-			fprintf(stderr, "Error: can't read file 2");
-			return 1;
+			break;
 		}
 		while(current_r2 != NULL) {
 			current_r2 = read_row(in2);
 			if(current_r2 != NULL || strlen(current_r2) != 0) {
-				
 				key = row_element(current_r2, col1);
 				if(key == NULL) {
 					fprintf(stderr, "Error: key not parsed r2\n");
@@ -493,13 +487,13 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 				}
 
 				
-				value = get_Htable_value(table, key);/////!!!!!!!
-				printf("value %s\n", value);
+				value = get_Htable_value(table, key);
 				if(value != NULL) {
-					write_rows(out, value, current_r2, 3);
+					write_rows(out, value, current_r2, col2);
 				}
 			} else {
 				current_r2 = NULL;
+                break;
 			}
 		}
 		delete_Htable_and_content(table);
