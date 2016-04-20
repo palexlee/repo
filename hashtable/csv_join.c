@@ -20,16 +20,25 @@ typedef struct bucket{
     struct bucket* next;
 } bucket;
 
-typedef struct {
-	int id;
-    size_t size; //taille de l'alvéole
+/*
+ * Sous structure qui contient une fraction de Htable:
+ * - elle permet d'allouer de la mémoire petit à petit selon les besoins
+ * - elle contient soit un nombre fixe de bucket (ALVEOLE_SIZE)
+ *   sauf si elle est la dernière de Htable, dans ce cas elle peut 
+ *   en contenir moins. c.f contruct_alveole
+ *
+ */
+typedef struct { 
+    size_t size; 
     bucket* content; 
 } alveole;
 
 typedef struct {
     size_t size;
     size_t nb_alveole;
-    int* initialized;
+
+    //tableau indiquant si une certaine alvéole est initialisée
+    int* initialized; 
     alveole** content;
 } Htable;
 
@@ -127,8 +136,7 @@ Htable* construct_Htable(size_t size) {
                 h->size = size;
                 h->nb_alveole = space;
                 for(int i = 0; i < space; ++i) {
-                    h->initialized[i] = 0;
-                    //h->content[i] = NULL;
+                    h->initialized[i] = 0; //aucune alvéole est initialisée
                 }
             }
             
@@ -160,11 +168,10 @@ alveole* construct_alveole(const Htable* table, const size_t hash) {
 		a->content = calloc(size, sizeof(bucket));
 		if(a->content!= NULL) {
 			for(int i = 0; i < size; ++i) {
-				a->content[i].valid = 0;
+				a->content[i].valid = 0; //aucun bucket n'est valid
 			}
 			a->size = size;
-			table->initialized[hash/ALVEOLE_SIZE] = 1;
-			a->id = hash/ALVEOLE_SIZE;
+			table->initialized[hash/ALVEOLE_SIZE] = 1;//indique à la Htable que cette alvéole est initialisée
 		} else {
 			a = NULL;
 		}
@@ -172,7 +179,7 @@ alveole* construct_alveole(const Htable* table, const size_t hash) {
     if(a == NULL) {
         	fprintf(stderr, "Error: not enough memory to construct the table");
         	fflush(stderr);
-        }
+    }
     return a;
 }
 
@@ -182,17 +189,27 @@ void delete_Htable_and_content(Htable* h) {
 
             for(int i = 0; i < h->nb_alveole; ++i) {
 				
-                if(h->initialized[i] != 0) {
+                if(h->initialized[i] != 0) {//supprime le contenu des alvéoles initialisée seulement
 					h->initialized[i] = 0;
 					
 					if(h->content[i] != NULL) {
 						alveole * a = h->content[i];
 						
 						for(int j = 0; j < a->size; ++j) {
+                            /**
+                             * pour chaque bucket, on free la key et value qui ont été
+                             * allouées lors de la lecture des .cvs
+                             */
 							bucket* ptr = a->content[j].next;
+                            free((char*) a->content[j].key);  
+                            free((void*) a->content[j].value);
+
 							bucket* next = NULL;
 							while(ptr != NULL) {
 								next = ptr->next;
+                                //libère la mémoire de la chaîne de collision
+                                free((char*) ptr->key); 
+                                free((void*) ptr->value);
 								free(ptr);
 								ptr = next;
 							}	
@@ -200,7 +217,7 @@ void delete_Htable_and_content(Htable* h) {
 							next = NULL;
 						
 						}
-						free((h->content[i])->content);
+						free((h->content[i])->content); //libère finalement la mémoire de l'alvéole
 					}
                 }
             }
@@ -216,8 +233,9 @@ void delete_Htable_and_content(Htable* h) {
 void add_Htable_value(Htable* h, const char* key, const void* value) {
     if(h != NULL && h->content != NULL) {
         size_t hash = hash_function(key, h->size);
-        size_t pos_alveole = hash / ALVEOLE_SIZE;
+        size_t pos_alveole = hash / ALVEOLE_SIZE; //détermine l'indice de l'aléole
         alveole* a = NULL;
+
         if(h->initialized[pos_alveole] == 0) {
             a = construct_alveole(h, hash);
             if(a == NULL) {
@@ -229,38 +247,51 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
         } else {
             a = h->content[pos_alveole];
         }
-        size_t pos = hash % ALVEOLE_SIZE;
+
+        size_t pos = hash % ALVEOLE_SIZE; //détermine la position du bucket dans l'alvéole
         bucket b = {1, key, value, NULL};
         bucket* buck = &a->content[pos];
-        if(buck->valid == 0) {
+        if(buck->valid == 0) { //si le bucket est vide
             *buck = b;
         } else {
             if(buck->key == b.key) {
+                /**
+                 * Si la key du premier bucket correspond à la key du nouveau bucket,
+                 * on libère la mémoire allouée à key et value de l'ancien bucket et 
+                 * on remplace le bucket par le nouveau bucket.
+                 */
                 b.next = buck->next;
+                free((char*) buck->key);
+                free((void*) buck->value);
                 *buck = b;
             } else {
                 bucket* prev = buck;
                 bucket* curr = buck->next;
                 while(curr != NULL) {
+                    /**
+                     * Sinon, on regarde si la key correspond à la key d'un bucket situé
+                     * dans la chaîne de colision
+                     */
                     if(strcmp(curr->key, b.key) == 0) {
                         b.next = curr->next; //update de la valeur pour une clé déjà présente dans la chaine
+                        free((char*) curr->key);
+                        free((void*) curr->value);
+                        free(curr);
                         *(prev->next) = b;
-                        printf("chaine %s\n", b.key);
                         break;
                     }
                     prev = curr;
                     curr = curr->next;
                 }
-                if(curr == NULL) { //collision : place à la fin de la chaine
+
+                if(curr == NULL) { //collision : on place le bucket à la fin de la chaine
 					curr = malloc(sizeof(bucket));
                     if(curr == NULL) {
 						fprintf(stderr, "Error: not enough memory");
 					} else {
 						*curr = b;
-						prev->next = curr;  //ne pas oublier de free
+						prev->next = curr;
 					}
-                    printf("collision %s\n", curr->key);
-                    fflush(stdout);
                 }
             }
         }
@@ -274,21 +305,22 @@ const void* get_Htable_value(Htable* h, const char* key) {
 	}
 	
 	size_t hash = hash_function(key, h->size);
-	size_t pos_alveole = hash / ALVEOLE_SIZE;
-	size_t pos = hash % ALVEOLE_SIZE;
-	
+	size_t pos_alveole = hash / ALVEOLE_SIZE; //position de l'alvéole dans la table
+	size_t pos = hash % ALVEOLE_SIZE; //position du bucket dans l'alvéole
+
+    fflush(stdout);
 	alveole* a = h->content[pos_alveole];
 	if(a == NULL) {
 		return NULL;
 	}
 	
 	bucket* b = &a->content[pos];
-	if(b == NULL) {
+	if(b->valid == 0) {
 		return NULL;
 	}
 	
-	while(b != NULL) {
-		if(strncmp(b->key, key, 15) == 0) {
+	while(b != NULL) { //cherche la clé dans le bucket et ses voisins
+		if(strcmp(b->key, key) == 0) { 
 			return b->value;
 		} else {
 			b = b->next;
@@ -405,7 +437,16 @@ char* row_element(const csv_const_row row, size_t index)
  
 int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t memory) {
 	Htable* table = NULL;
-	int load_factor = (int) memory * HASH_TABLE_LOAD_FACTOR;
+    size_t num_bucket = memory / sizeof(bucket);
+    if(num_bucket < 2) {
+        fprintf(stderr, "Error: not enough memory allowed, was %zu\n", num_bucket);
+        return 1;
+    }
+    
+	int load_factor = (int) num_bucket * HASH_TABLE_LOAD_FACTOR;
+
+    printf("num buckets: %zu\n", num_bucket);
+    printf("load factor: %d\n", load_factor);
 	
 	csv_row current_r1 = read_row(in1);
 	
@@ -428,11 +469,11 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 		return 2;
 	}
 		
-	csv_const_row key = NULL;
-	csv_const_row value = NULL;
+	csv_row key = NULL;
+	csv_row value = NULL;
 	
 	while(current_r1 != NULL || current_r2 != NULL) {
-		table = construct_Htable(4*memory);
+		table = construct_Htable(num_bucket);
 		if(table == NULL) {
 			fprintf(stderr, "Error: can't create the hashtable");
 			delete_Htable_and_content(table);
@@ -443,6 +484,7 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 			for(int i = 0; i < load_factor; ++i) {
 				current_r1 = read_row(in1);
 				if(current_r1 == NULL || strlen(current_r1) == 0) {
+                    free(current_r1);
 					current_r1 = NULL;
 					break;
 				} else {
@@ -451,16 +493,17 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 					if(key == NULL) {
 						fprintf(stderr, "Error: can't read data key r1\n");
 						delete_Htable_and_content(table);
+                        free(current_r1);
 						return 1;
 					}
+                    fflush(stdout);
 					add_Htable_value(table, key, current_r1);
 				}
 
 			}
 		}
 		
-		
-		if(fseek(in2, 0, SEEK_SET) != 0) {
+		if(fseek(in2, 0, SEEK_SET) != 0) { 
 			fprintf(stderr, "Error I/O");
 			delete_Htable_and_content(table);
 			return 2;
@@ -468,6 +511,7 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 		
 		if(ferror(in2) || feof(in2)) {
 			fprintf(stderr,"Error I/O");
+            delete_Htable_and_content(table);
 			return 2;
 		}
 			
@@ -476,6 +520,8 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 		if(current_r2 == NULL) {
 			break;
 		}
+
+        fflush(stdout);
 		while(current_r2 != NULL) {
 			current_r2 = read_row(in2);
 			if(current_r2 != NULL && strlen(current_r2) != 0) {
@@ -486,20 +532,30 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 					return 1;
 				}
 
-				
-				value = get_Htable_value(table, key);
-				if(value != NULL) {
-					write_rows(out, value, current_r2, col2);
+				/**
+                 * cherche la key dans la Htable
+                 * et écrit la jointure si une correspondance existe
+                 */
+                fflush(stdout);
+				csv_const_row getValue = get_Htable_value(table, key);
+				if(getValue != NULL) { 
+					write_rows(out, getValue, current_r2, col2);
 				}
 			} else {
+                free(current_r2);
 				current_r2 = NULL;
                 break;
 			}
+
 		}
+
+        
+        printf("reloading\n");
+        fflush(stdout);
 		delete_Htable_and_content(table);
 	}
-	
-	
+
+	printf("succes!\n");
 	return 0;
 }
 

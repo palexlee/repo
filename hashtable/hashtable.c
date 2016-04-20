@@ -25,7 +25,7 @@ typedef struct {
     alveole** content;
 } Htable;
 
-#define ALVEOLE_SIZE 10
+#define ALVEOLE_SIZE 60
 
 size_t hash_function(const char* key, size_t size)
 {
@@ -208,9 +208,6 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
         }
         size_t pos = hash % ALVEOLE_SIZE;
 
-        char* k = malloc(sizeof(char*));
-        void* v = malloc(sizeof(void*));
-        v = mem_copy  /////RDGADRGJARGJRGJARGJARGAJRGJARGAJRGJADRJGJDRJGJRDGARGJROGJEROGJEGJGöVOJAGOJQEGJA°RGJöAJ
         bucket b = {1, key, value, NULL};
         bucket* buck = &a->content[pos];
         if(buck->valid == 0) {
@@ -218,6 +215,7 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
         } else {
             if(buck->key == b.key) {
                 b.next = buck->next;
+                //free(buck);
                 *buck = b;
             } else {
                 bucket* prev = buck;
@@ -225,6 +223,8 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
                 while(curr != NULL) {
                     if(strcmp(curr->key, b.key) == 0) {
                         b.next = curr->next; //update de la valeur pour une clé déjà présente dans la chaine
+                        //free(curr);
+                        curr = NULL;
                         *(prev->next) = b;
                         printf("chaine %s\n", b.key);
                         break;
@@ -342,11 +342,11 @@ char *randstring(int length) {
 }
 
 int main(void) { 
-	Htable* table = construct_Htable(256);
-	for(int i = 0; i < 200; ++i) {
+	Htable* table = construct_Htable(2);
+	/*for(int i = 0; i < 1000; ++i) {
 		char* tmp = randstring(8);
 		add_Htable_value(table, tmp, &i);
-	}
+	}*/
 	char* s = "sam";
 	char* p = "pougne";
 	char* x = "rhubarbe";
