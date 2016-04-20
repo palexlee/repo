@@ -5,17 +5,17 @@
 #include <inttypes.h>
 #include <time.h>
 
-typedef struct bucket{
-	int valid;
+typedef struct bucket {
+    int valid;
     const char* key;
     const void* value;
     struct bucket* next;
 } bucket;
 
 typedef struct {
-	int id;
+    int id;
     size_t size; //taille de l'alvéole
-    bucket* content; 
+    bucket* content;
 } alveole;
 
 typedef struct {
@@ -87,15 +87,16 @@ void delete_bucket(bucket* b) {
 	}
 }*/
 
-Htable* construct_Htable(size_t size) {
+Htable* construct_Htable(size_t size)
+{
     Htable* h = NULL;
 
     h = malloc(sizeof(Htable));
     if(h != NULL) {
         //on vérifie que la taille n'est pas trop grande
         size_t space = size/ALVEOLE_SIZE + 1;
-        if(space * sizeof(alveole*) > SIZE_MAX || 
-            (h->content = calloc(space, sizeof(alveole*))) == NULL) {
+        if(space * sizeof(alveole*) > SIZE_MAX ||
+           (h->content = calloc(space, sizeof(alveole*))) == NULL) {
             h = NULL;
         } else {
             if((h->initialized = calloc(space, sizeof(int))) == NULL) {
@@ -108,17 +109,18 @@ Htable* construct_Htable(size_t size) {
                     //h->content[i] = NULL;
                 }
             }
-            
+
         }
         if(h == NULL) {
-        	fprintf(stderr, "Error: not enough memory to construct the table");
+            fprintf(stderr, "Error: not enough memory to construct the table");
         }
     }
     fflush(stdout);
     return h;
 }
 
-alveole* construct_alveole(const Htable* table, const size_t hash) {
+alveole* construct_alveole(const Htable* table, const size_t hash)
+{
     alveole* a = NULL;
     size_t size = 0;
     if((table->size - (table->size % ALVEOLE_SIZE)) < hash) {
@@ -126,59 +128,60 @@ alveole* construct_alveole(const Htable* table, const size_t hash) {
          * si la taille de la table n'est pas un multiple de ALVEOLE_SIZE
          * la dernière alveole de la table aura une taille de (table->size % ALVEOLE_SIZE)
          */
-        size = table->size % ALVEOLE_SIZE; 
-        
+        size = table->size % ALVEOLE_SIZE;
+
 
     } else {
         size = ALVEOLE_SIZE;
     }
     a = malloc(sizeof(alveole));
     if(a!= NULL) {
-		a->content = calloc(size, sizeof(bucket));
-		if(a->content!= NULL) {
-			for(int i = 0; i < size; ++i) {
-				a->content[i].valid = 0;
-			}
-			a->size = size;
-			table->initialized[hash/ALVEOLE_SIZE] = 1;
-			a->id = hash/ALVEOLE_SIZE;
-		} else {
-			a = NULL;
-		}
+        a->content = calloc(size, sizeof(bucket));
+        if(a->content!= NULL) {
+            for(int i = 0; i < size; ++i) {
+                a->content[i].valid = 0;
+            }
+            a->size = size;
+            table->initialized[hash/ALVEOLE_SIZE] = 1;
+            a->id = hash/ALVEOLE_SIZE;
+        } else {
+            a = NULL;
+        }
     }
     if(a == NULL) {
-        	fprintf(stderr, "Error: not enough memory to construct the table");
-        	fflush(stderr);
-        }
+        fprintf(stderr, "Error: not enough memory to construct the table");
+        fflush(stderr);
+    }
     return a;
 }
 
-void delete_Htable_and_content(Htable* h) {
+void delete_Htable_and_content(Htable* h)
+{
     if(h != NULL) {
         if (h->content != NULL) {
 
             for(int i = 0; i < h->nb_alveole; ++i) {
-				
+
                 if(h->initialized[i] != 0) {
-					h->initialized[i] = 0;
-					
-					if(h->content[i] != NULL) {
-						alveole * a = h->content[i];
-						
-						for(int j = 0; j < a->size; ++j) {
-							bucket* ptr = a->content[j].next;
-							bucket* next = NULL;
-							while(ptr != NULL) {
-								next = ptr->next;
-								free(ptr);
-								ptr = next;
-							}	
-							ptr = NULL;
-							next = NULL;
-						
-						}
-						free((h->content[i])->content);
-					}
+                    h->initialized[i] = 0;
+
+                    if(h->content[i] != NULL) {
+                        alveole * a = h->content[i];
+
+                        for(int j = 0; j < a->size; ++j) {
+                            bucket* ptr = a->content[j].next;
+                            bucket* next = NULL;
+                            while(ptr != NULL) {
+                                next = ptr->next;
+                                free(ptr);
+                                ptr = next;
+                            }
+                            ptr = NULL;
+                            next = NULL;
+
+                        }
+                        free((h->content[i])->content);
+                    }
                 }
             }
             free(h->content);
@@ -190,7 +193,8 @@ void delete_Htable_and_content(Htable* h) {
     }
 }
 
-void add_Htable_value(Htable* h, const char* key, const void* value) {
+void add_Htable_value(Htable* h, const char* key, const void* value)
+{
     if(h != NULL && h->content != NULL) {
         size_t hash = hash_function(key, h->size);
         size_t pos_alveole = hash / ALVEOLE_SIZE;
@@ -233,86 +237,89 @@ void add_Htable_value(Htable* h, const char* key, const void* value) {
                     curr = curr->next;
                 }
                 if(curr == NULL) { //collision : place à la fin de la chaine
-					curr = malloc(sizeof(bucket));
+                    curr = malloc(sizeof(bucket));
                     if(curr == NULL) {
-						fprintf(stderr, "Error: not enough memory");
-					} else {
-						*curr = b;
-						prev->next = curr;  //ne pas oublier de free
-					}
+                        fprintf(stderr, "Error: not enough memory");
+                    } else {
+                        *curr = b;
+                        prev->next = curr;  //ne pas oublier de free
+                    }
                     printf("collision %s\n", curr->key);
                     fflush(stdout);
                 }
             }
         }
     }
-    
+
 }
 
-void affiche(Htable* table) {
- 	if(table != NULL) {
- 		for(int i = 0; i < (table -> nb_alveole); ++i) {
- 			if(table->initialized[i] == 0) {
- 				printf("Alveole %d non init\n", i);
- 			} else {
- 				alveole* a = table->content[i];
- 				if(a == NULL) {
-					fprintf(stderr, "Error");
-				} else {
-					printf("id: %d\n", a->id);
-					printf("ptr %d\n", (int)a);
-					for(int j = 0; j < a->size; ++j) {
-						if(a->content[j].valid == 0) {
-							printf("Bucket %d vide\n", i*ALVEOLE_SIZE +j);
-						} else {
-							printf("Key: %s, Value: %d, ptr: %d\n", a->content[j].key, *(int*)a->content[j].value, (int)&a->content[j]);
-							bucket* b = a->content[j].next;
-							while(b != NULL) {
-								printf("=> Key: %s, Value: %d\n", b->key, *(int*)b->value);
-								b = b->next;
-							}
-						}
-					}
-				}
- 			}
- 		}
- 	}
+void affiche(Htable* table)
+{
+    if(table != NULL) {
+        for(int i = 0; i < (table -> nb_alveole); ++i) {
+            if(table->initialized[i] == 0) {
+                printf("Alveole %d non init\n", i);
+            } else {
+                alveole* a = table->content[i];
+                if(a == NULL) {
+                    fprintf(stderr, "Error");
+                } else {
+                    printf("id: %d\n", a->id);
+                    printf("ptr %d\n", (int)a);
+                    for(int j = 0; j < a->size; ++j) {
+                        if(a->content[j].valid == 0) {
+                            printf("Bucket %d vide\n", i*ALVEOLE_SIZE +j);
+                        } else {
+                            printf("Key: %s, Value: %d, ptr: %d\n", a->content[j].key, *(int*)a->content[j].value, (int)&a->content[j]);
+                            bucket* b = a->content[j].next;
+                            while(b != NULL) {
+                                printf("=> Key: %s, Value: %d\n", b->key, *(int*)b->value);
+                                b = b->next;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
-const void* get_Htable_value(Htable* h, const char* key) {
-	if(h == NULL) {
-		return NULL;
-	}
-	
-	size_t hash = hash_function(key, h->size);
-	size_t pos_alveole = hash / ALVEOLE_SIZE;
-	size_t pos = hash % ALVEOLE_SIZE;
-	
-	alveole* a = h->content[pos_alveole];
-	if(a == NULL) {
-		return NULL;
-	}
-	
-	bucket* b = &a->content[pos];
-	if(b == NULL) {
-		return NULL;
-	}
-	
-	while(b != NULL) {
-		if(strncmp(b->key, key, 15) == 0) {
-			return b->value;
-		} else {
-			b = b->next;
-		}
-	}
-	
-	return NULL;
+const void* get_Htable_value(Htable* h, const char* key)
+{
+    if(h == NULL) {
+        return NULL;
+    }
+
+    size_t hash = hash_function(key, h->size);
+    size_t pos_alveole = hash / ALVEOLE_SIZE;
+    size_t pos = hash % ALVEOLE_SIZE;
+
+    alveole* a = h->content[pos_alveole];
+    if(a == NULL) {
+        return NULL;
+    }
+
+    bucket* b = &a->content[pos];
+    if(b == NULL) {
+        return NULL;
+    }
+
+    while(b != NULL) {
+        if(strncmp(b->key, key, 15) == 0) {
+            return b->value;
+        } else {
+            b = b->next;
+        }
+    }
+
+    return NULL;
 }
 
-char *randstring(int length) {    
+char *randstring(int length)
+{
     static int mySeed = 25011984;
     char *string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-#'?!";
-    size_t stringLen = strlen(string);        
+    size_t stringLen = strlen(string);
     char *randomString = NULL;
 
     srand(time(NULL) * length + ++mySeed);
@@ -326,42 +333,42 @@ char *randstring(int length) {
     if (randomString) {
         short key = 0;
 
-        for (int n = 0;n < length;n++) {            
-            key = rand() % stringLen;          
+        for (int n = 0; n < length; n++) {
+            key = rand() % stringLen;
             randomString[n] = string[key];
         }
 
         randomString[length] = '\0';
 
-        return randomString;        
-    }
-    else {
+        return randomString;
+    } else {
         printf("No memory");
         exit(1);
     }
 }
 
-int main(void) { 
-	Htable* table = construct_Htable(2);
-	/*for(int i = 0; i < 1000; ++i) {
-		char* tmp = randstring(8);
-		add_Htable_value(table, tmp, &i);
-	}*/
-	char* s = "sam";
-	char* p = "pougne";
-	char* x = "rhubarbe";
-	int a = 14;
-	int b = 42;
-	int c = a + b;
-	add_Htable_value(table, s, &a);
-	add_Htable_value(table, p, &b);
-	add_Htable_value(table, p, &a);
-	add_Htable_value(table, x, &c);
-	add_Htable_value(table, x, &b);
-	affiche(table);
-	int value = *(int*)get_Htable_value(table, x);
-	printf("value %d\n", value);
-	delete_Htable_and_content(table);
+int main(void)
+{
+    Htable* table = construct_Htable(2);
+    /*for(int i = 0; i < 1000; ++i) {
+    	char* tmp = randstring(8);
+    	add_Htable_value(table, tmp, &i);
+    }*/
+    char* s = "sam";
+    char* p = "pougne";
+    char* x = "rhubarbe";
+    int a = 14;
+    int b = 42;
+    int c = a + b;
+    add_Htable_value(table, s, &a);
+    add_Htable_value(table, p, &b);
+    add_Htable_value(table, p, &a);
+    add_Htable_value(table, x, &c);
+    add_Htable_value(table, x, &b);
+    affiche(table);
+    int value = *(int*)get_Htable_value(table, x);
+    printf("value %d\n", value);
+    delete_Htable_and_content(table);
 
-	return 0;
+    return 0;
 }
