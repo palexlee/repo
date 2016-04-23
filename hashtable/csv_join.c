@@ -181,7 +181,6 @@ void delete_Htable_and_content(Htable* h)
 {
     if(h != NULL) {
         if (h->content != NULL) {
-
             for(int i = 0; i < h->nb_alveole; ++i) {
 
                 if(h->initialized[i] != 0) {//supprime le contenu des alvéoles initialisée seulement
@@ -212,8 +211,10 @@ void delete_Htable_and_content(Htable* h)
                             next = NULL;
 
                         }
-                        free((h->content[i])->content); //libère finalement la mémoire de l'alvéole
+                        free((h->content[i])->content);
+                        free(h->content[i]); //libère finalement la mémoire de l'alvéole
                     }
+                    free(h->initialized);
                 }
             }
             free(h->content);
@@ -258,6 +259,7 @@ void add_Htable_value(Htable* h, const char* key, const void* value)
                 b.next = buck->next;
                 free((char*) buck->key);
                 free((void*) buck->value);
+                free(buck);
                 *buck = b;
             } else {
                 bucket* prev = buck;
@@ -433,15 +435,11 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 {
     Htable* table = NULL;
     size_t num_bucket = memory / sizeof(bucket);
-    if(num_bucket < 2) {
-        printf("Too small\n");
+    if(num_bucket < 2) { //sinon load_factor = 0 après
         return 1;
     }
 
     int load_factor = (int) num_bucket * HASH_TABLE_LOAD_FACTOR;
-
-    printf("num buckets: %zu\n", num_bucket);
-    printf("load factor: %d\n", load_factor);
 
     csv_row current_r1 = read_row(in1);
 
@@ -461,20 +459,25 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
         return 2;
     }
 
+    free(current_r1);
+    free(current_r2);
+
     csv_row key = NULL;
     csv_row value = NULL;
 
-    while(current_r1 != NULL || current_r2 != NULL) {
+
+    while(!feof(in1) || current_r2 != NULL) {
         table = construct_Htable(num_bucket);
         if(table == NULL) {
             delete_Htable_and_content(table);
             return 2;
         }
 
-        if(current_r1 != NULL) {
+
+        if(!feof(in1)) {
             for(int i = 0; i < load_factor; ++i) {
                 current_r1 = read_row(in1);
-                if(current_r1 == NULL || strlen(current_r1) == 0) {
+                if(feof(in1)) {
                     free(current_r1);
                     current_r1 = NULL;
                     break;
@@ -484,6 +487,7 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
                     if(key == NULL) {
                         delete_Htable_and_content(table);
                         free(current_r1);
+                        current_r1 = NULL;
                         return 1;
                     }
                     fflush(stdout);
@@ -509,12 +513,15 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
             break;
         }
 
+        free(current_r2);
+
         fflush(stdout);
         while(current_r2 != NULL) {
             current_r2 = read_row(in2);
             if(current_r2 != NULL && strlen(current_r2) != 0) {
                 key = row_element(current_r2, col1);
                 if(key == NULL) {
+                    free(current_r2);
                     delete_Htable_and_content(table);
                     return 1;
                 }
@@ -527,6 +534,8 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
                 if(getValue != NULL) {
                     write_rows(out, getValue, current_r2, col2);
                 }
+                free(key);
+                free(current_r2);
             } else {
                 free(current_r2);
                 current_r2 = NULL;
@@ -535,13 +544,9 @@ int hash_join(FILE* in1, FILE* in2, FILE* out, size_t col1, size_t col2, size_t 
 
         }
 
-
-        printf("reloading\n");
-        fflush(stdout);
         delete_Htable_and_content(table);
     }
 
-    printf("succes!\n");
     return 0;
 }
 
