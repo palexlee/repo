@@ -30,14 +30,16 @@ Matrice* reallocate(Matrice* m);
 
 int main(void) {
 	Matrice* m1  = create();
-	Matrice* M1 = lire_matrice(m1);
-	Matrice M2;
+	m1 = lire_matrice(m1);
+	Matrice* m2 =  create();
+	m2 = lire_matrice(m2);
 	Matrice* res = create();
 
-	
-	Matrice* M = multiplication(M1, lire_matrice(&M2), res);
-	affiche_matrice(M);
-	liberer_matrice(M);
+	printf("ok\n");
+	res = multiplication(m1, m2, res);
+	affiche_matrice(res);
+	liberer_matrice(m1);
+	liberer_matrice(m2);
 	liberer_matrice(res);
 	
 	return 0;
@@ -126,10 +128,10 @@ void push_matrice(Matrice* m, size_t x, size_t y, int elem) {
 Matrice* create() {
 	Matrice* m = malloc(sizeof(Matrice));
 	if(m != NULL) {
-		m->mat = calloc(N, sizeof(int));
+		m->mat = calloc(N, sizeof(int*));
 		if(m->mat != NULL) {
 			for(size_t i = 0; i < N; ++i) {
-				if (m->mat[i] = calloc(N, sizeof(int)) == NULL) {
+				if ((m->mat[i] = calloc(N, sizeof(int))) == NULL) {
 					m = NULL;
 					break;
 				}
@@ -148,16 +150,16 @@ Matrice* reallocate(Matrice* m) {
 	if(r!= NULL && r->mat!=NULL) {
 		int** old = r->mat;
 		while(r->ligne > N) {
-			if (r->mat = realloc(r->mat, 2*N * sizeof(int)) == NULL) {
+			if ((r->mat = realloc(r->mat, 2*N * sizeof(int*))) == NULL) {
 				r->mat = old;
 				r = NULL;
 			} else {
 				r->allocatedY += N;
 			}
 		}
-		while(r->colonne > N) {
+		while(r->ligne > N) {
 			for(size_t i = 0; i < 2*N; ++i) {
-				if(r->mat[i] = realloc(r->mat[i], 2*N*sizeof(int)) == NULL) {
+				if((r->mat[i] = realloc(r->mat[i], 2*N*sizeof(int))) == NULL) {
 					r->mat = old;
 					r = NULL;
 					break;
@@ -171,6 +173,9 @@ Matrice* reallocate(Matrice* m) {
 
 void liberer_matrice(Matrice* m) {
 	if(m != NULL && m->mat != NULL) {
+		for(int i = 0; i < m->allocatedY; ++i) {
+			free(m->mat[i]);
+		}
 		free(m->mat);
 		m->ligne = 0;
 		m->colonne = 0;
